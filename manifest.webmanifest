@@ -1,0 +1,11 @@
+{
+  "name": "500",
+  "short_name": "500",
+  "description": "500 (Five Hundred) with family, friends and the computer.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b3d22",
+  "theme_color": "#0b3d22",
+  "icons": [{ "src": "img/icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }]
+}
