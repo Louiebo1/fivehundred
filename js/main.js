@@ -147,6 +147,7 @@ const ui = {
   me: 0,
   selected: new Set(),   // Cards picked to throw back after taking the kitty.
   pending: null,         // The card picked to play: it waits for a second tap or the button.
+  pendingBid: null,      // The bid (or pass) picked: it waits for a second tap or the button too.
   hint: null, hintCard: null, thinkingHint: false,
   banner: null,          // { title, detail, team, big, until, id }: a message over the table.
   bannerShown: null,     // The banner last drawn: it pops in only the first time.
@@ -165,7 +166,7 @@ const later = [];        // Timers that redraw when something on the table expir
 
 function resetUI() {
   Object.assign(ui, {
-    pending: null, hint: null, hintCard: null, thinkingHint: false, banner: null, bannerShown: null, revealStart: 0,
+    pending: null, pendingBid: null, hint: null, hintCard: null, thinkingHint: false, banner: null, bannerShown: null, revealStart: 0,
     kittyPopped: 0, linger: null, shown: { key: '', count: 0 }, holdResultUntil: 0, sentAt: null, prev: null,
     recorded: false, showSheet: false, showFinal: false, overlayKey: null,
   });
@@ -402,7 +403,7 @@ function update() {
     || (g.phase === 'bidding' && !g.calls.length && old.calls.length > 0);
   if (newDeal) {
     if (old) playSound('deal');
-    ui.holdResultUntil = 0; ui.linger = null; ui.revealStart = 0; ui.pending = null; ui.selected.clear();
+    ui.holdResultUntil = 0; ui.linger = null; ui.revealStart = 0; ui.pending = null; ui.pendingBid = null; ui.selected.clear();
     ui.hint = null; ui.hintCard = null; ui.showFinal = false;
     if (newGame) ui.recorded = false;
   } else if (g.played.length > old.played.length) playSound('snap');
@@ -427,7 +428,7 @@ function update() {
     }
     if (g.trick.length && old.trick.length === 0) ui.linger = null;
     if (g.result && !old.result) handEnded(g);
-    if (g.phase !== old.phase || g.turn !== old.turn) { ui.hint = null; ui.hintCard = null; ui.pending = null; }
+    if (g.phase !== old.phase || g.turn !== old.turn) { ui.hint = null; ui.hintCard = null; ui.pending = null; ui.pendingBid = null; }
   }
   if (g.phase === 'gameOver' && g.winner !== null && !ui.recorded && old) {
     ui.recorded = true;
@@ -655,6 +656,7 @@ function statusText(g, revealing) {
   switch (g.phase) {
     case 'bidding':
       if (whose) return `${whose} is bidding…`;
+      if (ui.pendingBid) return 'Tap it again to make sure';
       if (G.standing(g)) return `Everyone passed — raise your bid, or keep ${bidLabel(g.highBid)}`;
       return g.highBid ? `Bid over ${bidLabel(g.highBid)}, or pass` : 'Your bid';
     case 'kitty':
@@ -701,12 +703,31 @@ function bidGrid(g) {
       `<b>${bid.tricks}${trumpSymbol(bid.trump)}</b><small>${bidValue(bid)}</small>`);
     b.disabled = !allowed;
     b.setAttribute('aria-label', `Bid ${bid.tricks} ${bid.trump === NO_TRUMPS ? 'No Trumps' : SUIT_NAME[bid.trump]}, ${bidValue(bid)}`);
-    b.onclick = () => perform({ type: 'bid', bid });
+    if (ui.pendingBid?.bid && sameBid(ui.pendingBid.bid, bid)) b.classList.add('picked');
+    b.onclick = () => pickBid({ type: 'bid', bid });
     grid.appendChild(b);
   }
   wrap.appendChild(grid);
-  wrap.appendChild(button(G.standing(g) ? `Keep ${bidLabel(g.highBid)}` : 'Pass', 'pass', () => perform({ type: 'pass' })));
+  const passLabel = G.standing(g) ? `Keep ${bidLabel(g.highBid)}` : 'Pass';
+  const pass = button(passLabel, 'pass', () => pickBid({ type: 'pass' }));
+  if (ui.pendingBid?.type === 'pass') pass.classList.add('picked');
+  wrap.appendChild(pass);
+  if (ui.pendingBid) {
+    const m = ui.pendingBid;
+    wrap.appendChild(button(m.type === 'bid' ? `Bid ${bidLabel(m.bid)} (${bidValue(m.bid)})` : passLabel, 'primary confirm', () => perform(m)));
+  }
   return wrap;
+}
+
+const sameBid = (a, b) => a.tricks === b.tricks && a.trump === b.trump;
+
+/** A bid or pass is made only on a second tap (or the button under the grid), so a slip
+ *  of the finger doesn't count. */
+function pickBid(move) {
+  const p = ui.pendingBid;
+  if (p && p.type === move.type && (move.type === 'pass' || sameBid(p.bid, move.bid))) return perform(move);
+  ui.pendingBid = move; ui.hint = null;
+  render();
 }
 
 /** The kitty beside my hand after I win the bid: pick any five of these and my ten to
@@ -806,7 +827,7 @@ function perform(move) {
   if (!isMyTurn(g) || waitingOnHost()) return;
   const full = { ...move, seat: ui.me };
   if (!G.canApply(g, full, ui.me)) return;
-  ui.pending = null; ui.hint = null; ui.hintCard = null;
+  ui.pending = null; ui.pendingBid = null; ui.hint = null; ui.hintCard = null;
   if (g.phase === 'kitty') ui.selected.clear();
   if (isOnline() && !host.isHost) { ui.sentAt = state.version; render(); }
   host.send(full);

@@ -193,6 +193,8 @@ input:focus { outline: 2px solid var(--gold); }
 .bid-grid .bid small { font-size: 9px; font-weight: 600; opacity: 0.7; }
 .bid-grid .bid:disabled { background: rgba(255, 255, 255, 0.04); opacity: 0.35; }
 .bid-grid .pass { background: #8e8e93; min-width: 160px; }
+.bid-grid .picked { box-shadow: 0 0 0 3px var(--gold), 0 0 10px var(--gold); }
+.bid-grid .confirm { min-width: 160px; }
 
 .kitty-row { display: flex; align-items: center; gap: 10px; align-self: center; padding: 6px 10px; border-radius: 12px; background: rgba(0, 0, 0, 0.25); --cw: calc(var(--hand-w) * 0.9); margin-top: calc(var(--cw) * 0.25); }
 .kitty-row .tag { writing-mode: vertical-rl; transform: rotate(180deg); font: 900 11px -apple-system, sans-serif; color: var(--gold); letter-spacing: 1px; }
