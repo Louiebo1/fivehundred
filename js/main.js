@@ -11,6 +11,7 @@ import {
 import { STYLES } from './bot.js';
 import { newTableState, LocalHost, BOT_NAMES, PACE, trickLinger, shuffledList } from './table.js';
 import { OnlineTable, onlineAvailable } from './online.js';
+import { syncGame, pushName, pushStats, accountPanel, accountLobby, statsNote, account } from './account.js';
 import { think } from './think.js';
 import { play as playSound, sound, unlockSound } from './sounds.js';
 
@@ -31,6 +32,7 @@ function store(key, value) {
 const settings = Object.assign({ name: '', back: 'red', highFirst: true, largePrint: false, sounds: true, hints: false }, stored('fh.settings', {}));
 function saveSettings() {
   store('fh.settings', settings);
+  pushName(settings.name);
   document.body.classList.toggle('large-print', settings.largePrint);
   sound.on = settings.sounds;
 }
@@ -52,7 +54,7 @@ const savedGame = {
 // Statistics, kept on this device (the app's lines, without iCloud).
 const blankLine = () => ({ played: 0, won: 0, lost: 0, backDoor: 0, hands: 0, contracts: 0, contractsMade: 0, myBids: 0, myBidsMade: 0, slams: 0, defenseSets: 0, bestHand: 0 });
 const stats = stored('fh.stats', null) || { computer: blankLine(), online: blankLine() };
-const saveStats = () => store('fh.stats', stats);
+const saveStats = () => { store('fh.stats', stats); pushStats(); };
 
 const myName = () => settings.name || 'Player';
 
@@ -206,6 +208,7 @@ function showLobby() {
   const name = el('div', 'name', 'Playing as ');
   name.appendChild(button(settings.name || 'You', 'link', () => askName(showLobby)));
   lobby.appendChild(name);
+  lobby.appendChild(accountLobby());          // Sign in with Google (or who's signed in).
 
   const code = onlineAvailable() && lastTable.get();
   if (code) lobby.appendChild(button(`Back to Table ${code}`, 'big-button primary', () => joinTable(code)));
@@ -1066,6 +1069,7 @@ function showSettings(after) {
     saveSettings();
     after?.();
   };
+  if (!state) form.appendChild(accountPanel(button));     // Not at a table: it could change who holds the seat.
   popup('Settings', form, [['Done', 'primary', done]], done);     // Closing any way keeps the changes.
 }
 
@@ -1083,9 +1087,9 @@ function showStats() {
   for (const [name, f] of rows) t.appendChild(el('tr', '', `<td>${name}</td><td>${f(stats.computer)}</td><td>${f(stats.online)}</td>`));
   const body = el('div');
   body.appendChild(t);
-  body.appendChild(el('div', 'note', 'Kept on this device.'));
+  body.appendChild(el('div', 'note', statsNote()));
   popup('Statistics', body, [
-    ['Reset', '', () => confirmThen('Reset Statistics?', 'Every game and hand recorded on this device is forgotten.', 'Reset', () => {
+    ['Reset', '', () => confirmThen('Reset Statistics?', `Every game and hand recorded ${account.signedIn ? 'with your Google sign-in' : 'on this device'} is forgotten.`, 'Reset', () => {
       stats.computer = blankLine(); stats.online = blankLine(); saveStats();
     })],
     ['Done', 'primary'],
@@ -1107,6 +1111,17 @@ function showRules() {
 let resizeFrame = 0;
 window.addEventListener('resize', () => { cancelAnimationFrame(resizeFrame); resizeFrame = requestAnimationFrame(render); });
 
+// Signed in with Google (any of the family games): the name and statistics follow the account.
+syncGame({
+  id: 'fivehundred',
+  name: () => settings.name,
+  setName: (n) => {
+    settings.name = n; saveSettings();
+    for (const b of document.querySelectorAll('.lobby .name button')) b.textContent = n;
+  },
+  stats: () => stats,
+  setStats: (s) => { stats.computer = Object.assign(blankLine(), s.computer); stats.online = Object.assign(blankLine(), s.online); store('fh.stats', stats); },
+});
 if (params.get('name')) { settings.name = params.get('name').slice(0, 16); saveSettings(); }
 if (params.has('fast')) Object.assign(PACE, { bot: 20, trickPause: 30, trickSweep: 20, kittyCard: 10, kittyHold: 20, resultHold: 30, autoNext: 60 });
 const tableCode = params.get('t') || params.get('newtable');
