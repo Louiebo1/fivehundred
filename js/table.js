@@ -20,13 +20,16 @@ export const kittyReveal = () => PACE.kittyCard * G.KITTY_SIZE + PACE.kittyHold;
 
 export const shuffledList = (list) => list.map((x) => [Math.random(), x]).sort((a, b) => a[0] - b[0]).map((e) => e[1]);
 
-/** A fresh table state: the game plus the seats ([{ kind: 'person' | 'bot', name }]).
- *  Each bot is dealt a secret style, revealed when the game ends. */
+/** A fresh table state: the game plus the seats ([{ kind: 'person' | 'bot', name, chosenStyle? }]).
+ *  Each bot is dealt its own secret style, picked independently (so styles can repeat),
+ *  revealed when the game ends — except a partner whose personality you picked (as the app). */
 export function newTableState(seats) {
   const game = G.newGame();
-  const styles = shuffledList(STYLE_NAMES);
   game.humanSeats = peopleSeats({ seats });
-  seats.forEach((s, i) => { if (s.kind === 'bot') game.botStyles[i] = styles.pop(); });
+  const random = () => STYLE_NAMES[Math.floor(Math.random() * STYLE_NAMES.length)];
+  seats.forEach((s, i) => {
+    if (s.kind === 'bot') game.botStyles[i] = (i === 2 && STYLE_NAMES.includes(s.chosenStyle) && s.chosenStyle) || random();
+  });
   return { game, seats, paused: null, version: 0 };
 }
 

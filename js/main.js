@@ -8,7 +8,7 @@ import {
   SYMBOL, SUIT_NAME, SUITS, JOKER, NO_TRUMPS, ALL_BIDS, card, suitOf, rankOf, rankLabel, label, isRedSuit,
   isTrump, power, trumpSuit, effectiveSuit, bidValue, bidAbove, bidLabel, trumpSymbol, HEARTS, DIAMONDS, JACK,
 } from './cards.js';
-import { STYLES } from './bot.js';
+import { STYLES, STYLE_NAMES } from './bot.js';
 import { newTableState, LocalHost, BOT_NAMES, PACE, trickLinger, shuffledList } from './table.js';
 import { OnlineTable, onlineAvailable } from './online.js';
 import { syncGame, pushName, pushStats, accountPanel, accountLobby, statsNote, account } from './account.js';
@@ -29,7 +29,7 @@ function store(key, value) {
   try { value === null ? localStorage.removeItem(key) : localStorage.setItem(key, JSON.stringify(value)); } catch {}
 }
 
-const settings = Object.assign({ name: '', back: 'red', highFirst: true, largePrint: false, sounds: true, hints: false }, stored('fh.settings', {}));
+const settings = Object.assign({ name: '', back: 'red', highFirst: true, largePrint: false, sounds: true, hints: false, partner: '' }, stored('fh.settings', {}));
 function saveSettings() {
   store('fh.settings', settings);
   pushName(settings.name);
@@ -216,8 +216,8 @@ function showLobby() {
   const saved = savedGame.get();
   if (saved) lobby.appendChild(button(`Continue Game · ${saved.game.scores.join('–')}`, 'big-button primary', () => playComputer(saved)));
   lobby.appendChild(button(saved ? 'New Game vs the Computer' : 'Play the Computer', 'big-button', () => {
-    if (saved) confirmThen('New Game?', 'The game you have going will be lost.', 'New Game', () => playComputer());
-    else playComputer();
+    if (saved) confirmThen('New Game?', 'The game you have going will be lost.', 'New Game', pickPartner);
+    else pickPartner();
   }));
 
   const friends = button('Play with Friends', 'big-button', showFriends);
@@ -248,11 +248,35 @@ function askName(then) {
   input.focus();
 }
 
+/** Before a game vs the computer: pick your partner's personality, or Random (a secret
+ *  style). Opponents always play a secret style. The pick is remembered. */
+function pickPartner() {
+  const body = el('div', 'settings');
+  body.appendChild(el('p', 'faint', "Pick your partner's personality. Opponents play a secret style — you'll find out at the end of the game."));
+  const label = el('label', '', 'Partner');
+  const select = el('select');
+  select.appendChild(new Option('Random', ''));
+  STYLE_NAMES.forEach((k) => select.appendChild(new Option(STYLES[k].title, k)));
+  select.value = STYLES[settings.partner] ? settings.partner : '';
+  label.appendChild(select);
+  body.appendChild(label);
+  const blurb = el('small', 'faint');
+  const showBlurb = () => { blurb.textContent = STYLES[select.value]?.blurb ?? "Plays a secret style — you'll find out at the end of the game."; };
+  select.onchange = showBlurb;
+  showBlurb();
+  body.appendChild(blurb);
+  popup('Play the Computer', body, [['Cancel', ''], ['Deal', 'primary', () => {
+    settings.partner = select.value; saveSettings();
+    playComputer();
+  }]]);
+}
+
 function playComputer(saved = null) {
   let s = saved;
   if (!s) {
     const names = shuffledList(BOT_NAMES.filter((n) => n !== settings.name));
     const seats = [{ kind: 'person', name: settings.name || 'You' }, ...[0, 1, 2].map((i) => ({ kind: 'bot', name: names[i] }))];
+    if (STYLES[settings.partner]) seats[2].chosenStyle = settings.partner;
     if (params.has('autoplay')) seats[0].kind = 'bot';     // Testing: bots in every seat.
     s = newTableState(seats);
   }
