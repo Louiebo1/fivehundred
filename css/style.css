@@ -297,3 +297,6 @@ table.stats td:first-child { text-align: left; opacity: 0.85; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* Dragging a card sideways in my hand (js/handdrag.js). */
+.handrow .card.dragging { transform: translate(var(--drag-x, 0px), calc(var(--card-w, 70px) * -0.2)) scale(1.08) !important; transition: none !important; position: relative; z-index: 100; box-shadow: 0 8px 16px #0009; cursor: grabbing; }

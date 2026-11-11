@@ -39,7 +39,10 @@ Built like `~/code/hearts-web` (four seats) and `~/code/cribbage-web` (same Fire
   `fh.settings`, `fh.stats`, `fh.local`, `fh.table`. Names from other browsers go through
   `esc()`. Things that pop in (banner, kitty cards, trick cards) do so once, not on every
   redraw.
-- Not ported: nearby (Bluetooth) play, iCloud stats, themes, drag-to-rearrange the hand.
+- Not ported: nearby (Bluetooth) play, iCloud stats, themes.
+- `js/handdrag.js` — drag a card sideways in your hand to move it (as the app); the order
+  lasts for the hand. Same file in every web game; master copy
+  `~/code/cardgames-home/shared/handdrag.js`.
 
 ## Test
 - Rules: `/System/Library/Frameworks/JavaScriptCore.framework/Versions/Current/Helpers/jsc -m tests/engine.test.js`
